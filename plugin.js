@@ -1,0 +1,847 @@
+/**
+ * Dark Studio — Hermes desktop theme from the Dark Studio palette
+ * (github.com/barnacker/dark_studio). Shipped in
+ * github.com/barnacker/hermes_dark_studio — install per that repo's README.
+ *
+ * ONE plugin does everything: it registers the full DesktopTheme into
+ * Appearance (THEMES_AREA) AND injects the per-element overrides no
+ * DesktopThemeColors token reaches — the maroon composer field and its red
+ * typed text (--input_bg / --input_text; the composer fill is mixed from
+ * the global `card` token), the navy fill + hover on every filled button
+ * (--button_bg / --button_bg_hover; button paints are 5% accent-mixes, not
+ * tokens; labels use the foreground — --palette_buttonText), and the navy
+ * selected-row fill (--list_item_bg_selected; rows paint a token-mix var).
+ *
+ * The palette (CSS vars) maps onto the desktop DesktopTheme like this:
+ *
+ *   palette var         →   DesktopTheme key          →   what it paints
+ *   ─────────────────────────────────────────────────────────────────────────
+ *   --bg_window           →   background                →   app base  (swapped
+ *       #04030a (sidebar)                              →   with sidebar)
+ *   (was #00040b)        →   sidebar                   →   working rail
+ *   --text #ff8300      →   foreground /            →   all body text,
+ *                                cardForeground          incl. my output
+ *   --yellow3 #B88A16
+ *       (warmed)          →   mutedForeground         →   secondary/dim,
+ *                                #A06222                 placeholders, tree rules
+ *   near-black lifted     →   card / muted            →   raised surfaces,
+ *   (warm) --primary         (navy, selection)     →   userBubble → your messages
+ *   --blue4 #213E97     →   userBubbleBorder
+ *   --widget_headers
+ *       #300f00           →   border / input          →   all borders, idle
+ *                               (warm brown,           input outlines
+ *                                not cool grey)
+ *   --input_text
+ *       #db0000           →   ring / midground /      →   focus ring, selection,
+ *                                composerRing             streaming cursor
+ *   --input_text #db0000  →   destructive             →   Stop / error actions
+ *   --input_bg #170700    →   scoped: --composer-fill →   composer field ONLY
+ *   --input_text #db0000  →   scoped: composer text   →   your typed text ONLY
+ *   --input_bg #170700    →   scoped: [data-slot='input']/      →   settings + numeric
+ *   --input_text #db0000      'input-group'/'select-trigger'/   fields + selection
+ *                               'searchable-select-trigger'     boxes (same pair);
+ *                                   fill + text                 the composer model
+ *                                   pill (ghost button)
+ *   (none — white #fff)   →   scoped: --shimmer-color →   Thinking label's
+ *                                   moving streak (SHIMMER_CSS)
+ *   (installed font)    →   scoped: aui_thinking-     →   whole thinking block
+ *                                   disclosure italic   →   italic — label row +
+ *                                   (SHIMMER_CSS)           reasoning text
+ *   (app prose size)    →   scoped: aui_reasoning-text→   thinking body 10px —
+ *                                   0.625rem (SHIMMER)       under reply + label row
+ *   (scaffold mark)     →   scoped:                   →   internal mechanics
+ *                                   [data-conversation-    →   italic — tool mentions
+ *                                    scaffold] (INTERNAL)    ("Memory write noted"),
+ *                                                        status ticker, tool rows
+ *   (shiki token     →   scoped: pre/.shiki upright, →   code inside those rows
+ *    colors)            [style*='#768390'/         →   stays code; only COMMENT
+ *                           '#96d0ff'] italic      →   tokens + STRING tokens lean
+ *   --input_bg #170700    →   scoped: --popover-      →   coachmark tip
+ *                                surface (TIP_CSS)          bubble surface +
+ *                                                           arrow (was full
+ *                                                           accent red)
+ *   --button_bg #0d1a32   →   scoped: button bg       →   filled buttons (default
+ *                          + secondary)
+ *   --button_bg_hover
+ *       #152e55           →   scoped: button hover
+ *   --text #ff8300        →   scoped: button label    →   on the navy fill
+ *   --button_bg
+ *       #0d1a32           →   scoped: row-active var  →   selected nav rows
+ *   --button_bg_hover     →   scoped: row hover vars  →   nav/row hover (+ settings
+ *       #152e55               rows): --ui-row-hover-  →   the same light blue as
+ *                              background + --chrome-      the button hover
+ *                              action-hover
+ *   --button_bg
+ *       #0d1a32           →   scoped: settings active →   Settings section rows
+ *                              row fill + border-off   (overlay nav); the
+ *                              (NAV_PANEL_CSS)           boxed border is removed
+ *   (installed font)    →   typography.fontSans /   →   UI face: Glass TTY VT220
+ *                       + fontMono                  →   code face: Glass TTY VT220
+ *                                                      →   (VT220 cut, single
+ *                                                      →   weight — no Bold face;
+ *                                                      →   synth where marked
+ *                                                      →   classes ask for it)
+ *
+ * To tweak ANY detail: edit the VALUES table below and re-save — the plugin
+ * hot-reloads and the ⌘K "Dark Studio" command re-registers the updated
+ * theme (pick it again in Appearance to re-apply). The two scoped composer
+ * values live at the bottom of the table (COMPOSER). Or ask the agent to
+ * change a value / add a key.
+ *
+ * NOTE: name must not collide with a built-in desktop theme
+ * (mono/slate/cyberpunk/nous/midnight/ember).
+ */
+
+import { PALETTE_AREA, THEMES_AREA, host, requestTheme } from '@hermes/plugin-sdk'
+
+const ID = 'dark-studio'
+const NAME = 'dark-studio'
+const LABEL = 'Dark Console'
+
+// ─── Editable values ──────────────────────────────────────────────────────────
+const V = {
+  // Surface ladder (dark). base → raised → floating. Kept near-black; the warm
+  // identity comes from borders + the composer, not from every card.
+  background: '#00040B',   // the chat field (darkest surface)
+  card: '#0A0806',         // warm near-black, lifted from bg — raised surfaces
+  muted: '#141109',        // hover tints, disabled fills (warm)
+  popover: '#12100B',      // grey8, warm — menus, dropdowns, popovers
+  sidebar: '#0A0806',      // = card (warm lift) — rail reads lighter than chat
+
+  // Text ladder
+  foreground: '#FF8300',   // --text (label/output amber) — all body text
+  secondaryText: '#A06222', // warm dim (--yellow3 warmed) — secondary, placeholder
+
+  // Structure
+  border: '#300F00',       // --widget_headers (warm brown), NOT cool grey6
+
+  // Accent — red (value of --input_text). Focus ring, active tab,
+  // selection, streaming cursor, brand tools.
+  accent: '#DB0000',
+  accentDeep: '#221102',   // accent ~12% on bg — hover fills, active nav rows
+
+  // Semantic
+  danger: '#DB0000',       // --input_text red, same as accent — Stop / error actions
+
+  // User message bubble — warm brown, raised surface
+  bubble: '#300F00',
+  bubbleBorder: '#213E97',
+
+  // Composer field — the input pair. These are the two values a theme token
+  // CANNOT reach (composer fill is mixed from the global `card`), so they are
+  // injected as scoped CSS in register() below, confined to the composer.
+  composerField: '#170700', // --input_bg (maroon)
+  composerText: '#DB0000',  // --input_text (red)
+
+  // Filled buttons (variant="default" + "secondary") — the button pair. Their
+  // backgrounds are NOT gated by theme tokens (default = bg-primary, secondary
+  // = a 5% accent-mix), so scoped CSS, same as the composer. default/secondary
+  // labels are the theme foreground (--palette_buttonText = --text). The
+  // destructive variant (Stop/error) is left to the red token.
+  buttonBg: '#0D1A32',      // --button_bg
+  buttonBgHover: '#152E55', // --button_bg_hover
+
+  // Selected nav rows (sidebar sessions, file trees, messaging, MCP tab)
+  // and the Settings section rows — --button_bg, the darker of the blue
+  // pair (hover stays --button_bg_hover #152E55). Rows paint the
+  // token-mixed --ui-row-active-background var, so a scoped :root
+  // override (NAV_CSS) repoints it; row classes and animations stay
+  // untouched. The softer "open pane" band derives from the same var
+  // (28% of it).
+  navSelected: '#0D1A32',   // --button_bg (darker blue of the button pair)
+
+  // Font — Glass TTY VT220 (svofski/glasstty): one face, single weight, no
+  // regular-bold ramp — the TTF's declared family name. UI and code slots
+  // share the family; the theme model carries no weight token, so marked
+  // .font-semibold/.font-bold ask the OS to synthesize.
+  font: '"Glass TTY VT220", "SF Mono", Menlo, system-ui, sans-serif',
+  fontMono: '"Glass TTY VT220", "SF Mono", "Courier New", monospace',
+}
+
+// ─── Terminal ANSI — the Dark Studio ramps used verbatim (middle ramp
+//     normal, bright ramp bright) so the terminal matches the theme. ────────
+const ANSI = {
+  foreground: V.foreground,
+  cursor: V.accent,
+  selectionBackground: '#1A3278', // --blue5
+  black: '#464B59',     // grey3
+  red: '#E33B57',       // red2
+  green: '#25A231',     // green3
+  yellow: '#B88A16',    // yellow3
+  blue: '#476BD7',      // blue2
+  magenta: '#9E1A53',   // pink4
+  cyan: '#0981B4',      // teal3
+  white: '#C2C2C2',     // white4
+  brightBlack: '#A06222', // warm dim
+  brightRed: '#E85E75',    // red1
+  brightGreen: '#59D966',  // green1
+  brightYellow: '#EABC48', // yellow1
+  brightBlue: '#718CDC',   // blue1
+  brightMagenta: '#E5619A', // pink1
+  brightCyan: '#3DBEF5',   // teal1
+  brightWhite: '#EBEBEB',  // white2
+}
+
+// ─── The theme ────────────────────────────────────────────────────────────────
+// Every key below is a real DesktopThemeColors token (apps/desktop/src/themes/
+// types.ts). No dead keys: there is no `success` / `warning` / `disabledText`
+// token in the desktop model, so those ramp values live only in ANSI.
+const theme = {
+  name: NAME,
+  label: LABEL,
+  description: 'Dark room look — from the Dark Studio palette',
+  colors: {
+    background: V.background,
+    foreground: V.foreground,
+    card: V.card,
+    cardForeground: V.foreground,
+    muted: V.muted,
+    mutedForeground: V.secondaryText,
+    popover: V.popover,
+    popoverForeground: V.foreground,
+    primary: V.accent,
+    primaryForeground: '#0A0A0A',
+    secondary: V.accentDeep,
+    secondaryForeground: V.foreground,
+    accent: V.accentDeep,
+    accentForeground: V.foreground,
+    border: V.border,
+    input: V.border,           // idle input outline — warm brown, matches chrome
+    ring: V.accent,
+    midground: V.accent,
+    midgroundForeground: '#0A0A0A',
+    composerRing: V.accent,
+    destructive: V.danger,
+    destructiveForeground: '#FFFFFF',
+    sidebarBackground: V.sidebar,
+    sidebarBorder: V.border,
+    userBubble: V.bubble,
+    userBubbleBorder: V.bubbleBorder,
+  },
+  typography: {
+    fontSans: V.font,
+    fontMono: V.fontMono,
+  },
+  terminal: ANSI,
+}
+
+// The two input values no theme token can express. Scoped to the composer
+// subtree so they affect ONLY the field you type in, never other themes'
+// inputs or the app's other cards. `--composer-fill` drives the field surface
+// (styles.css mixes it from `card` for the global case); overriding it on the
+// composer root repoints that fill to the maroon. The editor text slot gets
+// the red; `!important` beats the global text-foreground stamp.
+const COMPOSER_CSS = `
+  [data-slot='composer-root'] {
+    --composer-fill: ${V.composerField} !important;
+  }
+  [data-slot='composer-rich-input'] {
+    color: ${V.composerText} !important;
+  }
+`
+
+// Filled buttons — the button pair. `[data-slot='button']` covers every
+// Button; the variant selector keeps outline/ghost/text/link (no solid
+// paint) out of scope while default + secondary get the navy fill. Labels
+// on the navy fill use the theme foreground (--palette_buttonText = --text)
+// — default/secondary classes set primary-foreground, which is near-black
+// and unreadable on navy. Attribute selectors (0-2-0) outscore the utility
+// classes (0-1-0), so no !important is needed.
+const BUTTON_CSS = `
+  [data-slot='button'][data-variant='default'],
+  [data-slot='button'][data-variant='secondary'] {
+    background-color: ${V.buttonBg};
+    color: ${V.foreground};
+  }
+  [data-slot='button'][data-variant='default']:hover:not(:disabled),
+  [data-slot='button'][data-variant='secondary']:hover:not(:disabled) {
+    background-color: ${V.buttonBgHover};
+  }
+`
+
+// Selected rows — sidebar session rows, file trees, messaging, and the MCP
+// tab all paint the selected row from --ui-row-active-background, a var the
+// theme mixes from tokens (no theme key can set a solid hex in it). Every
+// selected row in the app reads that one var, so this :root override is the
+// single choke point; row classes and their transitions stay untouched. The
+// softer "open pane" band (--ui-row-open-background, derived at 28%) follows
+// it automatically.
+const NAV_CSS = `
+  :root {
+    --ui-row-active-background: ${V.navSelected} !important;
+  }
+`
+
+// Row hover, everywhere rows ride — the sidebar row class reads
+// --ui-row-hover-background, every other row/control hover reads
+// --chrome-action-hover (which aliases --ui-control-hover-background).
+// Both are token-mixed 4-8% accent washes by default, which reads as a dark
+// warm dip — repointing them at the light button-hover blue makes every
+// hover-in one coherent color, and hovering a NAVY SELECTED row now
+// LIGHTENS instead of dipping to dark (active #0D1A32 → hover #152E55,
+// the same blue pair as the filled buttons).
+const ROW_HOVER_CSS = `
+  :root {
+    --ui-row-hover-background: ${V.buttonBgHover} !important;
+    --chrome-action-hover: ${V.buttonBgHover} !important;
+  }
+`
+
+// Settings (and every other overlay side nav) — OverlayNavItem marks the
+// active non-nested row with a box: border-(--ui-stroke-tertiary) +
+// bg-(--ui-bg-tertiary). The border var is shared by ~20 unrelated frames
+// (artifact cards, table rules, dividers) so it can't be recolored at
+// :root; the row itself is the target. Every overlay nav is wrapped in
+// [data-tour='overlay-nav'] (the app's own addressing hook) and its active
+// row is the only one whose class carries the tertiary-fill utility — that
+// pair scopes to the active row alone: solid navy fill, box removed, and a
+// light hover state — the ACTIVE row's own class list carries no hover
+// utility (app design: only inactive rows get one), so without this rule the
+// selected row never responds to the mouse.
+// --ui-bg-tertiary is deliberately left GLOBAL (21 consumers).
+const NAV_PANEL_CSS = `
+  [data-tour='overlay-nav'] button[class*='bg-(--ui-bg-tertiary)'] {
+    background-color: ${V.navSelected};
+    border-color: transparent;
+  }
+  [data-tour='overlay-nav'] button[class*='bg-(--ui-bg-tertiary)']:hover {
+    background-color: ${V.buttonBgHover};
+  }
+`
+
+// Code foreground, everywhere monospace output rides in chat — inline `code`
+// and fenced blocks alike. Verified render chain (markdown-text.tsx:454-462,
+// styles.css:1869/1482): messages wrap in [data-slot='aui_assistant-message-content'],
+// markdown is .aui-md; the app's styles.css paints inline code with a
+// white-ish foreground var at (0-3-2) specificity — only !important on the
+// identical selector beats it. Fenced blocks: Shiki emits inline-styled
+// token spans (github-dark-dimmed via light-dark()), likewise !important-only;
+// the un-highlighted fallback text inherits from the pre.
+const CODE_CSS = `
+  [data-slot='aui_assistant-message-content'] .aui-md :not(pre) > code {
+    color: ${V.accent} !important;
+  }
+  [data-slot='aui_assistant-message-content'] .aui-md pre,
+  [data-slot='aui_assistant-message-content'] .aui-md pre * {
+    color: ${V.accent} !important;
+  }
+`
+
+// Incremental re-entry of the DS-vs-shiki token override. One token at a
+// time. The first token is the comment — the hue the live build of the
+// app known to emit lowercased (#768390, verified in the user's DevTools
+// sample), and the one our earlier patch proved to render correctly on a
+// running build before broader changes regressed it. Adding the other 10
+// hues only after this one passes the visual test.
+const CODE_SHIKI_COMMENT = `
+  [data-slot='code-card'] pre code span[style*='#768390'] {
+    color: #696959 !important;
+    font-style: italic;
+  }
+`
+
+// Second incremental hue: strings. The user's DevTools sample showed the
+// string token carrying the light-dark value #96D0FF in uppercase in the
+// running build (the defaultColor: light-dark() wrapping keeps the case of
+// whichever side the source theme used). Matching both cases on the hook,
+// same mechanism the comment hook proved on both renders.
+const CODE_SHIKI_STRING = `
+  [data-slot='code-card'] pre code span[style*='#96D0FF'] {
+    color: #F5C024 !important;
+    font-style: italic;
+  }
+  [data-slot='code-card'] pre code span[style*='#96d0ff'] {
+    color: #F5C024 !important;
+    font-style: italic;
+  }
+`
+
+// Third incremental hue: keywords + storage (`const`, `function`, `import`,
+// `return`, `if`, `=>` punctuation in keyword scope, etc). Dimmed emits
+// these as #F47067 (lower in the user's build; uppercase variant for
+// cross-case tolerance). DS palette types them #B194FA purple.
+const CODE_SHIKI_KEYWORD = `
+  [data-slot='code-card'] pre code span[style*='#F47067'] {
+    color: #B194FA !important;
+  }
+  [data-slot='code-card'] pre code span[style*='#f47067'] {
+    color: #B194FA !important;
+  }
+`
+
+// Fourth incremental hue: #6CB6FF — dimmed's "constant / variable.other.constant"
+// family (constants, numeric hex, declare-position identifiers in
+// `const X = …`). DS tokenColors point this at #9EF019 lime (top-level
+// constants, enums, numbers, bools). Local/in-function `const x =` identifiers
+// are NOT semantically distinguishable under TextMate — not through any CSS I
+// can speak here; the VSCode editor sees them via its own semantic-token
+// channel which shiki lacks. Accept the editor→chat divergence: both land
+// lime here.
+const CODE_SHIKI_CONSTANT = `
+  [data-slot='code-card'] pre code span[style*='#6CB6FF'] {
+    color: #9EF019 !important;
+  }
+  [data-slot='code-card'] pre code span[style*='#6cb6ff'] {
+    color: #9EF019 !important;
+  }
+`
+
+
+// Incremental hues 5-7 — every remaining stock dimmed hue remapped
+// to the DS VSCode palette from its entry in 47 TextMate tokenColors
+// in barnacker/dark-studio-vscode/master (latest, verified live above).
+// the same 47-entry table the editor renders for these languages.
+const CODE_SHIKI_RULES = `
+  [data-slot='code-card'] pre code span[style*='#8DDB8C'] { color: #7CB375 !important; }  /* class / tag / component */
+  [data-slot='code-card'] pre code span[style*='#8ddb8c'] { color: #7CB375 !important; }  /* class / tag / component (lc) */
+  [data-slot='code-card'] pre code span[style*='#DCBDFB'] { color: #F0612D !important; }  /* function names (entity.name.function) */
+  [data-slot='code-card'] pre code span[style*='#dcbdfb'] { color: #F0612D !important; }  /* function names (entity.name.function) (lc) */
+  [data-slot='code-card'] pre code span[style*='#F69D50'] { color: #F9A201 !important; }  /* types (entity.name / meta.definition.variable) */
+  [data-slot='code-card'] pre code span[style*='#f69d50'] { color: #F9A201 !important; }  /* types (entity.name / meta.definition.variable) (lc) */
+  [data-slot='code-card'] pre code span[style*='#ADBAC7'] { color: #E8E8E3 !important; }  /* variables / general identifiers */
+  [data-slot='code-card'] pre code span[style*='#adbac7'] { color: #E8E8E3 !important; }  /* variables / general identifiers (lc) */
+  [data-slot='code-card'] pre code span[style*='#CDD9E5'] { color: #E8E8E3 !important; }  /* fallback text */
+  [data-slot='code-card'] pre code span[style*='#cdd9e5'] { color: #E8E8E3 !important; }  /* fallback text (lc) */
+  [data-slot='code-card'] pre code span[style*='#FF938A'] { color: #E52E2E !important; }  /* invalid / errors */
+  [data-slot='code-card'] pre code span[style*='#ff938a'] { color: #E52E2E !important; }  /* invalid / errors (lc) */
+  [data-slot='code-card'] pre code span[style*='#2D333B'] { color: #E8E8E3 !important; }  /* markup.ignored foreground */
+  [data-slot='code-card'] pre code span[style*='#2d333b'] { color: #E8E8E3 !important; }  /* markup.ignored foreground (lc) */
+`
+
+// Thinking indicator: the amber "shimmer" streak the user reads as yellow is
+// the tw-shimmer lib lightening currentColor (~40%) into a gold streak. Its
+// own knob --shimmer-color drives the moving streak; setting it white leaves
+// motion params and every other shimmer consumer untouched. Verified:
+// message-parts.tsx:233 (label span gets .shimmer only while pending, inside
+// the data-slot='aui_thinking-disclosure' container).
+const COMPOSER_SIZE_CSS = `
+  /* Composer (edit box under the chat) text up, op 2026-09-30: 13 -> 15px.
+     Body paints 0.8125rem hard (styles.css:801) --- --dt-* vars not
+     carried; the composer inherits. Override on the root scope: body
+     (composer + placeholders), and the input nodes (rich input field +
+     caret). Placeholder ::before inherits (inherits from its element).
+     Button knobs and the suggestion strip are their own font-size
+     rules and are excluded. */
+  body,
+  [data-slot='composer-rich-input'] {
+    font-size: 15px !important;
+  }
+`
+
+const GEO_CSS = `
+  /* line-height x1.2, op 2026-09-30 — see the rules below for the 4 app-carrying sites.
+     Inherited from <html> — one line the whole UI gets denser, incl.
+     menus, settings, sidebar. Elements with their own explicit
+     line-height rule (pre/code fences, table cells) hold. */
+  /* line-height knobs x1.2, op 2026-09-30. The app pins line-height in 4
+     places (doesn't inherit from html — my earlier html rule was overridden
+     by all of them): :root --dt-line-height (app base 1.5), chat body
+     1.5 (aui_assistant-message-content), user message 1.3
+     (--human-msg-line-height), thinking description 1.45. Everything is
+     multiplied against its current value by 1.2. The code fences (row
+     leading constant, fixed 1.25rem row) are left as-is. */
+  :root {
+    --dt-line-height: calc(1.5 * 0.84);
+  }
+  [data-slot='aui_assistant-message-content'] {
+    line-height: calc(1.5 * 0.84) !important;
+  }
+  [data-slot='aui_user-message-root'],
+  [data-slot='aui_edit-composer-root'] {
+    --human-msg-line-height: calc(1.3 * 0.84);
+  }
+  .aui-md {
+    line-height: calc(1.45 * 0.84) !important;
+  }
+`
+
+const SIDEBAR_TIGHT_CSS = `
+  /* Sidebar (line-height only) x0.84, op 2026-09-30. Row titles carry
+     the app's leading-\\[1.35\\] (SIDEBAR_TRUNCATED_LEADING) —
+     unlayered override. */
+  .hover-marquee,
+  .hover-marquee * {
+    line-height: calc(1.35 * 0.84);
+  }
+`
+
+const SHIMMER_CSS = `
+  [data-slot='aui_thinking-disclosure'] {
+    --shimmer-color: #FFFFFF;
+  }
+  /* Thinking BODY smaller than the reply text. The app's styles.css paints
+     scoped CSS with no @layer, and unlayered author CSS beats @layer'd
+     utilities — so font-size here outranks the .aui-md container class (and
+     its text-xs override). 0.625rem = 10px, deliberately below the 0.6875rem
+     label row: the body is the least important line in the block. Body only:
+     the reasoning text subtree, not the "Thinking" header row. */
+  [data-slot='aui_thinking-disclosure'] [data-slot='aui_reasoning-text'] {
+    font-size: 0.625rem;
+  }
+  /* The reasoning block reads as thought, not output: italic across the
+     whole collapsible disclosure — the "Thinking" label row AND the text
+     body. (Body-only was the first pass; the row was asked for separately
+     and now carries it too.) VictorMono's ramp ships real italics, no
+     synthetic oblique; icon glyphs and the shimmer streak are unaffected. */
+  [data-slot='aui_thinking-disclosure'],
+  [data-slot='aui_thinking-disclosure'] * {
+    font-style: italic;
+  }
+  /* Chat body text size — op 2026-09-29: 22px for the Glass TTY VT220
+     era. Same mechanism as the thinking-body rule: the app paints reply
+     text via layered utilities, and this unlayered author rule sits on
+     the message content roots, so font-size here wins for every painted
+     line that inherits (headings, lists, paragraphs). Fenced pre text
+     (Shiki's own font-size on the pre) and em-sized inline code keep
+     their relative bearings; the thinking disclosure block sits
+     later in source order and keeps its own size. */
+  [data-slot='aui_assistant-message-content'],
+  [data-slot='aui_user-message-text'] {
+    font-size: 16px;
+  }
+  /* Sidebar session title, op 2026-09-29: 18px. Verified hook from
+     session-row.tsx: the title span carries .hover-marquee-inner
+     (inside .hover-marquee, used only by sidebar row titles — the
+     compound keeps the hook unambiguous). Leading is 1.35 (app's
+     SIDEBAR_TRUNCATED_LEADING), the row's min-height class stretches
+     the row to fit; nothing clips. Metadata + preview lines (10px,
+     dim) untouched — only the bold title grows. */
+  .hover-marquee .hover-marquee-inner {
+    font-size: 14px;
+  }
+  /* Sidebar row height, op 2026-09-29: trim the shell min-height
+     (26px -> 20px). Real compound from chrome.tsx
+     SidebarRowShell: every session-row outer div carries exactly
+     min-h-[1.625rem] + grid grid-cols-[minmax(0,1fr)_auto]
+     items-stretch rounded-md + pr-2 — the four together identify the
+     shell div only (no other surface carries the full set; the
+     .arc-border arc row and the strip header rows keep their own
+     geometry). Inner cells stretch (items-stretch), labels center on
+     self-center, so 12px titles sit in the 20px band without
+     clipping (leading 1.35 -> 16.2px box). Icon leads stay 14px
+     (SIDEBAR_ROW_LEAD fixed grid, em-anchored). */
+
+`
+
+// Internal mechanics — the "not the deliverable" rows: tool mentions
+// ("Memory write noted"), the status ticker, system rows, and the delegate
+// card. All carry data-conversation-scaffold (the documented block mark in
+// scaffold-row.tsx — the resting fade also rides it in styles.css); the tool
+// blocks' expanded result payloads sit in the same subtree, so they lean
+// too — the whole machine-internal layer reads apart from the assistant's
+// actual output. Real VictorMono italics, no synthetic oblique.
+const INTERNAL_CSS = `
+  [data-conversation-scaffold],
+  [data-conversation-scaffold] * {
+    font-style: italic;
+  }
+  /* Code stays code: the vitals of these rows are mechanical, NOT the
+     assistant's voice — and the user reads diffs / payloads as something
+     different. So every code-like region inside the mechanics layer renders
+     upright again: tool payload text, stdout/stderr, file-edit diffs (whose
+     container is a .shiki <pre>). Specificity (a,2,1) beats the blanket
+     (a,1,0) rule above for any element under <pre>.
+     The color-only diff path (plain .diff-line spans, no inline-color hooks)
+     stays upright with the pre — the color-hook rules below can't match it. */
+  [data-conversation-scaffold] pre,
+  [data-conversation-scaffold] pre *,
+  [data-conversation-scaffold] .shiki,
+  [data-conversation-scaffold] .shiki * {
+    font-style: normal;
+  }
+  /* Comment + string tokens, inside code that just went upright, lean —
+     the only two token classes the user wants set italic. Shiki emits
+     tokens as <span style="color: light-dark(#dark, #light)"> — no classes —
+     so the hook is the inline color itself. The values come from the two
+     SHIKI_THEME files (github-dark-dimmed + github-light-default, read from
+     node_modules): #768390 is the only color assigned to comment scope
+     (punctuation.definition.comment / string.comment too); #96d0ff is the
+     string family (string, string.regexp, string.other.link). Neither color
+     is assigned to any other token class in either palette — verified by
+     set-diff over all 49 tokenColor entries of each. The app's
+     SHIKI_COLOR_REPLACEMENTS (light-mode comment remap) rewrites only the
+     light-side hex, so the dark-side substring survives the light-dark()
+     printing even under light scheme. The bare-hex variants are the
+     fallback for any rendering path that skips the light-dark() wrapping. */
+  [data-conversation-scaffold] [style*='light-dark(#768390'],
+  [data-conversation-scaffold] [style*='#768390'],
+  [data-conversation-scaffold] [style*='light-dark(#96d0ff'],
+  [data-conversation-scaffold] [style*='#96d0ff'] {
+    font-style: italic;
+  }
+`
+
+// Settings + numeric fields (data-slot='input' / 'input-group' — the generic
+// Input and its prefix/suffix wrapper, all schema.type='number' fields
+// included, plus data-slot='select-trigger' — the selection boxes: the
+// bare Select controls and the enclosed popper chevron) ride the shared
+// .desktop-input-chrome — a fill mixed from the global `card` token, text the
+// app-wide foreground. To match the composer field: the maroon `--input_bg` as
+// the solid field fill and the red `--input_text` as the typed text, the same
+// pair as the composer above. `!important` beats the foreground stamp, scoped
+// to these slots so no other theme's inputs or the app's other fields are
+// affected.
+// Build stamp — re-injected CSS is indistinguishable across versions
+// otherwise (styles identical on familiarity, only the build ID differs).
+// Keep in sync on every change that makes a "is my change live?" question
+// unanswerable.
+const DS_BUILD = '20260930-5'
+
+const INPUT_CSS = `
+  [data-slot='input'],
+  [data-slot='input-group'],
+  [data-slot='select-trigger'],
+  [data-slot='searchable-select-trigger'] {
+    background: ${V.composerField} !important;
+  }
+  [data-slot='input'],
+  [data-slot='select-trigger'],
+  [data-slot='searchable-select-trigger'] {
+    color: ${V.composerText} !important;
+  }
+  /* Legacy fallback: an older packaged renderer without the data-slot
+     markers still paints select triggers with .desktop-input-chrome +
+     Radix data-state — catch the same pair there so it works on the first
+     commit, no holdout. The current main's data-slot rules win on
+     specificity; this is belt only. */
+  [class*='desktop-input-chrome'][data-state] {
+    background: ${V.composerField} !important;
+    color: ${V.composerText} !important;
+  }
+`
+
+// The composer model selector — the one text-bearing control in the control
+// row that is NOT an input. It is a ghost Button (variant="ghost":
+// transparent, dim text), so none of the input rules reach it. The stable
+// hook: the pill is the only ghost button carrying the .max-w-40 class (it
+// is the only control in the row that can give width back) — the icon
+// buttons (dictate, auto-speak, wake word, voice menu, queue) are square and
+// stay untouched. data-tour='model-pill' is added where present (primary
+// chat only); the class selector also covers the side-by-side tiles. Same
+// pair as the composer field.
+const MODEL_PILL_CSS = `
+  [data-slot='button'][data-variant='ghost'].max-w-40,
+  [data-tour='model-pill'] {
+    background-color: ${V.composerField} !important;
+    color: ${V.composerText} !important;
+  }
+`
+
+// The "coachmark" tip bubble (e.g. "Work that runs itself" on the Scheduled
+// jobs row) is the app's one variant="accent" popover: both the box and its
+// arrow fill from --popover-surface, which that variant points at
+// var(--dt-primary-solid) = the full accent — a saturated, full-strength red.
+// Those get re-routed to the warm popover surface (still one variable the
+// accent-based text/arrow read, so the tip stays legible and reads as a
+// quiet callout instead of a red brick). One element scope, one variable —
+// no other surface (menu, dropdown, composer) is affected, and the shared
+// accent token (ring/selection/cursor) is unchanged.
+const TIP_CSS = `
+  [data-slot='tip-bubble'] {
+    --popover-surface: ${V.composerField} !important;
+  }
+`
+
+// The left-panel show/hide toggle — the titlebar's "sidebar" tool. Its glyph is
+// the Codicon `layout-sidebar-left`, which renders the global class
+// .codicon-layout-sidebar-left — a name used in exactly ONE place in the app,
+// so this scope hits only that control: the right-panel tool (…sidebar-right),
+// flip-panes, and every other titlebar tool stay untouched. The button itself
+// rides the shared titlebarButtonClass (rest = muted-foreground/85, a dimmed
+// warm read in this theme), so the icon idled dim and only flashed the body
+// color on hover. Pin the glyph at the full window-text orange (verbatim
+// --text) at rest AND on hover; a color set directly on the glyph beats the
+// inherited muted value from its button, and the button's hover FILL is a
+// different property, so the whole titlebar otherwise stays as-is.
+const SIDEBAR_TOGGLE_CSS = `
+  .codicon-layout-sidebar-left {
+    color: ${V.foreground} !important;
+  }
+`
+
+function injectComposerCss() {
+  if (typeof document === 'undefined') return
+  // A stale <style> from an earlier build — drop it so only the new one remains
+  const legacy = document.getElementById('dark-studio-composer')
+  if (legacy) legacy.remove()
+  let style = document.getElementById('dark-studio-scoped')
+  if (!style) {
+    style = document.createElement('style')
+    style.id = 'dark-studio-scoped'
+    document.head.appendChild(style)
+  }
+  // Idempotent — hot reload re-runs register; rewrite the rules in place.
+  // Build stamp first: one grep in devtools answers "is this the current
+  // file?" without reading through every rule.
+  style.textContent =
+    `/* dark-studio build ${DS_BUILD} */\n` +
+    COMPOSER_CSS + INPUT_CSS + MODEL_PILL_CSS + TIP_CSS + BUTTON_CSS + NAV_CSS + ROW_HOVER_CSS + NAV_PANEL_CSS + CODE_CSS + CODE_SHIKI_COMMENT + CODE_SHIKI_STRING + CODE_SHIKI_KEYWORD + CODE_SHIKI_CONSTANT + CODE_SHIKI_RULES + GEO_CSS + COMPOSER_SIZE_CSS + SIDEBAR_TIGHT_CSS + SHIMMER_CSS + INTERNAL_CSS + SIDEBAR_TOGGLE_CSS
+}
+
+// Minimal shape check (mirrors the app's validator) so a bad edit can't
+// shadow the real theme with junk.
+const REQUIRED = ['background', 'foreground', 'primary']
+if (typeof theme.name !== 'string' || typeof theme.label !== 'string' ||
+    !REQUIRED.every(k => typeof theme.colors[k] === 'string')) {
+  console.error(`[dark-studio] theme failed shape check — not registered`)
+}
+
+// ─── Cold-launch fix ─────────────────────────────────────────────────────────
+// The app paints the persisted skin at boot, BEFORE disk plugins load
+// (renderer first, plugins a moment later). A cold start could therefore
+// never resolve a persisted 'dark-studio' — its registry registration hadn
+// happened yet — and the paint silently fell back to the default skin. (The
+// scoped CSS below still applied, because it's injected at load — so a
+// relaunch looked half-themed at first.)
+//
+// Fix: the user-theme store is a plain localStorage record that the boot
+// paint and every theme resolution read synchronously — same keys, same
+// storage the app itself uses (themes/user-themes.ts, USER_THEMES_KEY).
+// That function IS core-only and the plugin SDK exposes no install door, so
+// reproduce the core write exactly here: merge this theme into the existing
+// record, clobbering only our own name. When the user's next (re)launch
+// reads the store, 'dark-studio' resolves on frame 1 — before React even
+// mounts — and the persisted selection finally sticks. The THEMES_AREA
+// registration below still carries the current process (picker listing,
+// live switching).
+//
+// Guardrails (mirror the core install): built-in names can never be shadowed
+// (NAME is stable and not built-in — verified against presets), and the read
+// tolerates a missing/foreign record so a concurrent user upload is never
+// destroyed. If a future app build renames the key, this degrades to
+// registry-only mode: the current session is fine, a cold boot falls back to
+// the old behavior — detected by the self-heal trip below.
+//
+// Self-heal for the migration: persisted selection is 'dark-studio' AND the
+// record had no entry = exactly the bug state (the app is painting the
+// fallback while believing this theme is active). Re-apply the selection
+// right after the register (so the registry check succeeds) — only on the
+// launch where the fix lands; steady-state launches do nothing more.
+const USER_THEMES_KEY = 'hermes-desktop-user-themes-v1'
+const GLOBAL_SKIN_KEY = 'hermes-desktop-theme-v2'
+const PROFILE_SKINS_KEY = 'hermes-desktop-profile-themes-v1'
+
+function readUserThemeRecord() {
+  // null = the stored record exists but is unparseable — a corrupt-record
+  // signal, NOT "empty". Callers must not overwrite a corrupt record with a
+  // partial one (that would drop any other installed themes in it).
+  try {
+    const raw = window.localStorage.getItem(USER_THEMES_KEY)
+    if (!raw) {
+      return {}
+    }
+    const parsed = JSON.parse(raw)
+    return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function persistUserThemeAndHeal() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  let determineSelfHeal = false
+
+  try {
+    const recordBefore = readUserThemeRecord()
+    const storedBefore = recordBefore ? Object.prototype.hasOwnProperty.call(recordBefore, NAME) : false
+
+    let selection = window.localStorage.getItem(GLOBAL_SKIN_KEY)
+
+    try {
+      const profile = String(
+        host.state && host.state.profile && typeof host.state.profile.get === 'function'
+          ? host.state.profile.get() || ''
+          : ''
+      ).trim() || 'default'
+
+      if (profile !== 'default') {
+        const perProfile = JSON.parse(window.localStorage.getItem(PROFILE_SKINS_KEY) || 'null')
+
+        if (perProfile && typeof perProfile === 'object' && typeof perProfile[profile] === 'string') {
+          selection = perProfile[profile]
+        }
+      }
+    } catch {
+      // per-profile record unreadable — global slot already checked
+    }
+
+    determineSelfHeal = !storedBefore && selection === NAME
+  } catch {
+    // storage sniffing is best-effort; the persist below is the point
+  }
+
+  // The heal is independent of the record write — it resolves the name via
+  // the registry contribution made earlier in this same register — so run it
+  // first: a corrupt record can never block a valid heal.
+  if (determineSelfHeal) {
+    requestTheme(NAME)
+  }
+
+  try {
+    const record = readUserThemeRecord()
+    if (record === null) {
+      console.warn('[dark-studio] user-theme record corrupt — left untouched (non-fatal)')
+      return
+    }
+    record[NAME] = theme
+    window.localStorage.setItem(USER_THEMES_KEY, JSON.stringify(record))
+  } catch (error) {
+    // Non-fatal — the registry registration still serves this process, and
+    // the next load retries the persist.
+    console.warn('[dark-studio] could not persist user theme (non-fatal)', error)
+  }
+}
+
+export default {
+  id: ID,
+  name: LABEL,
+  description: 'Desktop theme from the Dark Studio palette (barnacker/dark_studio)',
+  register(ctx) {
+    // Registry first: the self-heal's requestTheme must be able to resolve
+    // the name through the contribution just made.
+    ctx.register({
+      id: 'theme',
+      area: THEMES_AREA,
+      data: theme,
+    })
+
+    persistUserThemeAndHeal()
+    injectComposerCss()
+
+    ctx.register({
+      id: 'apply',
+      area: PALETTE_AREA,
+      data: {
+        id: 'dark-studio.apply',
+        label: 'Theme: apply Dark Console',
+        keywords: ['theme', 'dark', 'studio', 'apply', 'switch'],
+        run: () => {
+          const ok = requestTheme(NAME)
+          if (!ok) {
+            host.notify({ kind: 'error', message: 'Dark Studio theme not registered yet' })
+            return
+          }
+          host.notify({ kind: 'info', message: 'Dark Studio applied' })
+        },
+      },
+    })
+
+    ctx.register({
+      id: 'copy',
+      area: PALETTE_AREA,
+      data: {
+        id: 'dark-studio.copy',
+        label: 'Theme: copy Dark Console palette JSON',
+        keywords: ['theme', 'dark', 'studio', 'copy', 'json', 'palette'],
+        run: () => {
+          void navigator.clipboard
+            ?.writeText(JSON.stringify(theme, null, 2))
+            .then(() => host.notify({ kind: 'info', message: 'Dark Studio palette JSON copied' }))
+        },
+      },
+    })
+  },
+}

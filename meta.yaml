@@ -1,0 +1,24 @@
+name: hermes-desktop
+format: js-plugin
+generated: plugin.js
+
+# Upstream lineage: barnacker/hermes_dark_studio (plugin.js + install.ps1).
+# Suite rebrand = LABEL const + the two ⌘K menu labels ('Dark Studio' ->
+# 'Dark Console'). Machine-facing identity stayed:
+#   const ID   = 'dark-studio'
+#   const NAME = 'dark-studio'
+# so existing installs, install links
+#   hermes://plugin-desktop/install?repo=barnacker/hermes_dark_studio&force=true
+# and persisted theme selections keep resolving. New installs use this repo.
+#
+# Token paths the plugin uses (see plugin.js `const V = { ... }`):
+#   background, card, muted, popover, sidebar        -> surface.*
+#   foreground, secondaryText                         -> text.*
+#   border, accent, accentDeep, danger                -> structure.*, semantic.*
+#   bubble, bubbleBorder                              -> bubble.*
+#   composerField, composerText                       -> composer.*
+#   buttonBg, buttonBgHover, navSelected              -> button.*
+
+# Per-user resilient values (Hermes desktop settings, read-first, never forced):
+#   font family (desktop appearance custom-font field)
+#   theme UI accent override (future: user-object variant)
