@@ -75,8 +75,8 @@
  *       #0d1a32           →   scoped: settings active →   Settings section rows
  *                              row fill + border-off   (overlay nav); the
  *                              (NAV_PANEL_CSS)           boxed border is removed
- *   (installed font)    →   typography.fontSans /   →   UI face: Glass TTY VT220
- *                       + fontMono                  →   code face: Glass TTY VT220
+ *   (installed font)    →   typography.fontSans /   →   UI face: VT220 Nerd Font Mono
+ *                       + fontMono                  →   code face: VT220 Nerd Font Mono
  *                                                      →   (VT220 cut, single
  *                                                      →   weight — no Bold face;
  *                                                      →   synth where marked
@@ -150,12 +150,14 @@ const V = {
   // (28% of it).
   navSelected: '#0D1A32',   // --button_bg (darker blue of the button pair)
 
-  // Font — Glass TTY VT220 (svofski/glasstty): one face, single weight, no
-  // regular-bold ramp — the TTF's declared family name. UI and code slots
+  // Font — VT220 Nerd Font Mono (barnacker/vt220-nerd-font): the Nerd Fonts
+  // patched Glass TTY VT220 — same VT220 cut and scanline look, plus the
+  // full nerd icon set, strict one-cell mono grid. One face, single weight,
+  // no regular-bold ramp — the TTF's declared family name. UI and code slots
   // share the family; the theme model carries no weight token, so marked
   // .font-semibold/.font-bold ask the OS to synthesize.
-  font: '"Glass TTY VT220", "SF Mono", Menlo, system-ui, sans-serif',
-  fontMono: '"Glass TTY VT220", "SF Mono", "Courier New", monospace',
+  font: '"VT220 Nerd Font Mono", "Glass TTY VT220", "SF Mono", Menlo, system-ui, sans-serif',
+  fontMono: '"VT220 Nerd Font Mono", "Glass TTY VT220", "SF Mono", "Courier New", monospace',
 }
 
 // ─── Terminal ANSI — the Dark Studio ramps used verbatim (middle ramp
@@ -488,13 +490,14 @@ const SHIMMER_CSS = `
     font-style: italic;
   }
   /* Chat body text size — op 2026-09-29: 22px for the Glass TTY VT220
-     era. Same mechanism as the thinking-body rule: the app paints reply
-     text via layered utilities, and this unlayered author rule sits on
-     the message content roots, so font-size here wins for every painted
-     line that inherits (headings, lists, paragraphs). Fenced pre text
-     (Shiki's own font-size on the pre) and em-sized inline code keep
-     their relative bearings; the thinking disclosure block sits
-     later in source order and keeps its own size. */
+     era (a.k.a. the VT220 Nerd Font Mono cut). Same mechanism as the
+     thinking-body rule: the app paints reply text via layered utilities,
+     and this unlayered author rule sits on the message content roots, so
+     font-size here wins for every painted line that inherits (headings,
+     lists, paragraphs). Fenced pre text (Shiki's own font-size on the
+     pre) and em-sized inline code keep their relative bearings; the
+     thinking disclosure block sits later in source order and keeps its
+     own size. */
   [data-slot='aui_assistant-message-content'],
   [data-slot='aui_user-message-text'] {
     font-size: 16px;
